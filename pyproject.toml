@@ -1,0 +1,21 @@
+[project]
+name = "vaes"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "black[all]>=25.1.0",
+    "jupyter>=1.1.1",
+    "jupyterlab>=4.3.5",
+    "lightning>=2.5.0.post0",
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.3",
+    "pydantic>=2.10.6",
+    "scipy>=1.15.2",
+    "torch>=2.6.0",
+    "torchmetrics>=1.6.2",
+    "torchvision>=0.21.0",
+    "tqdm>=4.67.1",
+    "wandb>=0.19.8",
+]
