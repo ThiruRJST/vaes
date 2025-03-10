@@ -11,21 +11,21 @@ from models.modelling_dvae import (
 )
 from PIL import Image
 
-from torchvision.datasets import CIFAR10
-from torchvision.transforms import ToTensor
+from torchvision.datasets import FGVCAircraft
+from torchvision.transforms import ToTensor, Normalize, Compose, Resize
 from torch.utils.data import DataLoader
-from trainer.training_engine import DVAETrainer
+from trainer.training_engine_dvae import DVAETrainer
 from trainer.scheduler import LinearScheduler
 
 global_config = DVAEConfig(
     image_size=224,
-    hidden_size=64,
+    hidden_size=256,
     encoder=EncoderConfig(
-        input_channels=3, output_channels=512, num_layers=2, num_resnet_blocks=2
+        input_channels=3, output_channels=512, num_layers=4, num_resnet_blocks=4
     ),
     decoder=DecoderConfig(
-        num_layers=2,
-        num_resnet_blocks=2,
+        num_layers=4,
+        num_resnet_blocks=4,
         input_channels=512,
         output_channels=3,
     ),
@@ -67,35 +67,55 @@ print(f"The training setting is: {global_config}")
 
 dvae = DVAE(config=global_config)
 
-cifar10_test = CIFAR10(root="data", train=False, download=True, transform=ToTensor())
+cifar10_test = FGVCAircraft(
+    root="data",
+    split="test",
+    download=True,
+    transform=Compose(
+        [
+            Resize(size=(128, 128)),
+            ToTensor(),
+            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    ),
+)
 cifar10_testloader = DataLoader(cifar10_test, batch_size=1)
 
-dvae = DVAETrainer.load_from_checkpoint("checkpoints/dvae-epoch=04-val_loss=0.64.ckpt",
-                                        dvae_model=dvae,
-                                        dvae_config=global_config,
-                                        temp_scheduler=temp_schd,
-                                        kl_div_weight_scheduler=kl_schd)
+dvae = DVAETrainer.load_from_checkpoint(
+    "checkpoints/dvae-epoch=03-val_loss=0.52.ckpt",
+    dvae_model=dvae,
+    dvae_config=global_config,
+    temp_scheduler=temp_schd,
+    kl_div_weight_scheduler=kl_schd,
+)
 dvae.eval()
 
 print(dvae.device)
 
+import numpy as np
+
+mean = np.array([0.485, 0.456, 0.406])
+std = np.array([0.229, 0.224, 0.225])
+
 for i, (img, _) in enumerate(cifar10_testloader):
-    
-    #infer the image, save the image as original and reconstructed concatenated
+
+    # infer the image, save the image as original and reconstructed concatenated
     with torch.no_grad():
         img = img.to(dvae.device).float()
         decoded = dvae.test_step(img)
-    
-    #save the image
+
+    # save the image
     img = img.squeeze().permute(1, 2, 0)
     img = img.detach().cpu().numpy()
-    img = Image.fromarray((img * 255).astype("uint8"))
+    denormalized = img * std + mean
+    img = Image.fromarray((denormalized * 255).astype("uint8"))
     img.save(f"images/original_{i}.png")
 
-    #save the reconstructed image
+    # save the reconstructed image
     decoded = decoded.squeeze().permute(1, 2, 0)
     decoded = decoded.detach().cpu().numpy()
-    decoded = Image.fromarray((decoded * 255).astype("uint8"))
+    dec_denorm = decoded * std + mean
+    decoded = Image.fromarray((dec_denorm * 255).astype("uint8"))
     decoded.save(f"images/reconstructed_{i}.png")
 
     if i == 5:

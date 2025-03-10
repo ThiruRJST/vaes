@@ -15,3 +15,5 @@ images/
 .ipynb_checkpoints/
 data/
 wandb/
+
+*.png

@@ -207,7 +207,7 @@ class DVAE(nn.Module):
         if temperature is None:
             temperature = self.temperature
 
-        soft_one_hot = F.gumbel_softmax(logits, dim=-1, tau=temperature, hard=hard)
+        soft_one_hot = F.gumbel_softmax(logits, dim=-1, tau=temperature, hard=True)
         x_encoded = torch.matmul(
             soft_one_hot.unsqueeze(-2), self.embeddings.weight
         ).squeeze(-2)

@@ -9,6 +9,7 @@ dependencies = [
     "jupyter>=1.1.1",
     "jupyterlab>=4.3.5",
     "lightning>=2.5.0.post0",
+    "lpips>=0.1.4",
     "matplotlib>=3.10.1",
     "numpy>=2.2.3",
     "pydantic>=2.10.6",

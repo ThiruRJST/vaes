@@ -9,6 +9,17 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import LinearLR
 
 
+def compute_kl_loss_with_freebits(logits, num_embeddings, free_bits_threshold=0.1):
+    log_probs = torch.log_softmax(logits, dim=-1)
+    log_uniform = torch.log(torch.ones_like(log_probs) / num_embeddings)
+    kl_div = F.kl_div(log_probs, log_uniform, log_target=True, reduction="none")
+
+    kl_div = kl_div.view(kl_div.shape[0], -1)
+    kl_div_adjusted = torch.clamp(kl_div - free_bits_threshold, min=0)
+    kl_loss = kl_div_adjusted.sum(dim=-1).mean()
+    return kl_loss
+
+
 class DVAETrainer(pl.LightningModule):
     def __init__(
         self, dvae_model, dvae_config, temp_scheduler, kl_div_weight_scheduler
@@ -44,14 +55,10 @@ class DVAETrainer(pl.LightningModule):
 
         reconstruction_loss = F.mse_loss(decoded, batch)
 
-        log_softmax = torch.log_softmax(logits, dim=-1)
-        log_uniform = torch.log(
-            torch.ones_like(log_softmax) / self.global_configs.num_embeddings
+        elbo_loss = compute_kl_loss_with_freebits(
+            logits, self.global_configs.num_embeddings
         )
-        elbo_loss = F.kl_div(
-            log_softmax, log_uniform, log_target=True, reduction="batchmean"
-        )
-        loss = reconstruction_loss + kl_div_weight * elbo_loss
+        loss = reconstruction_loss + 0.01 * elbo_loss
 
         self.log(f"{mode}_loss", loss, prog_bar=True)
         self.log(f"{mode}_elbo_loss", elbo_loss, prog_bar=True)
@@ -89,5 +96,3 @@ class DVAETrainer(pl.LightningModule):
         decoded = self.model.decode(encoded)
 
         return decoded
-    
-        
